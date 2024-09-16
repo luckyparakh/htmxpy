@@ -58,11 +58,18 @@ async def logout(response: RedirectResponse, access_token: Annotated[Union[str, 
 
 
 @ app.get("/posts")
-async def get_all_posts(request: Request) -> HTMLResponse:
-    posts = get_posts(connection=connection)
+async def get_all_posts(request: Request, access_token: Annotated[Union[str, None], Cookie()] = None) -> HTMLResponse:
+    user_id = None
+    if access_token:
+        user_id = decrypt_access_token(access_token)['user_id']
+    posts = get_posts(connection=connection, user_id=user_id)
     # breakpoint()
+    context = posts.model_dump()
+    if access_token:
+        context['login'] = True
+    print(context)
     return templates.TemplateResponse(
-        request=request, name="posts.html", context=posts.model_dump()
+        request=request, name="posts.html", context=context
     )
 
 
@@ -135,7 +142,7 @@ async def login(username: Annotated[str, Form()], password: Annotated[str, Form(
 async def create_like(post_id: PostID, request: Request, uid: int = Depends(oauth_cookie)) -> HTMLResponse:
     like = Like(user_id=uid, post_id=post_id.post_id)
     err = add_like(connection, like)
-    post = get_post(connection, post_id.post_id).model_dump()
-    print(post)
-    context = {"post": post, "liked": True}
+    post = get_post(connection, post_id.post_id, uid).model_dump()
+    # print(post)
+    context = {"post": post, "login": True}
     return templates.TemplateResponse(request=request, name="post.html", context=context)

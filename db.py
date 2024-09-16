@@ -6,7 +6,7 @@ import logging
 logger = logging.getLogger("logger")
 
 
-def get_posts(connection: Connection, limit: int = 10, page: int = 0) -> Posts:
+def get_posts(connection: Connection, user_id: int | None = None, limit: int = 10, page: int = 0) -> Posts:
     offset = limit*page
     with connection as c:
         cur = c.cursor()
@@ -21,19 +21,54 @@ def get_posts(connection: Connection, limit: int = 10, page: int = 0) -> Posts:
                     FROM likes
                     WHERE post_id IN (Select post_id from post_page)
                     GROUP BY post_id
+                ),
+                user_liked AS (
+                    SELECT post_id, user_id
+                    FROM likes
+                    WHERE user_id = :user_id AND post_id IN (SELECT post_id FROM post_page)
                 )
-                SELECT p.post_id post_id,post_title, post_text,user_id,num_likes
+                SELECT p.post_id post_id,post_title, post_text,p.user_id user_id,num_likes, u.user_id user_liked
                 FROM post_page p
                 LEFT JOIN like_count l
-                USING (post_id);
+                USING (post_id)
+                LEFT JOIN user_liked u
+                USING (post_id)
+                ;
             '''
-        cur = cur.execute(q, {"limit": limit, "offset": offset})
+        q = '''
+        WITH post_page AS (
+    SELECT post_id, post_title, post_text, user_id
+    FROM posts
+    LIMIT :limit
+    OFFSET :offset
+),
+like_count AS (
+    SELECT post_id, COUNT(*) AS num_likes
+    FROM likes
+    WHERE post_id IN (SELECT post_id FROM post_page)
+    GROUP BY post_id
+),
+user_liked AS (
+    SELECT post_id, user_id
+    FROM likes
+    WHERE user_id = :user_id AND post_id IN (SELECT post_id FROM post_page)
+)
+SELECT p.post_id, p.post_title, p.post_text, p.user_id AS user_id,
+       COALESCE(l.num_likes, 0) AS num_likes,
+       CASE WHEN u.user_id IS NOT NULL THEN TRUE ELSE FALSE END AS user_liked
+FROM post_page p
+LEFT JOIN like_count l ON p.post_id = l.post_id
+LEFT JOIN user_liked u ON p.post_id = u.post_id;
+
+        '''
+        cur = cur.execute(
+            q, {"limit": limit, "offset": offset, "user_id": user_id})
         # for c in cur.fetchall():
         #     print(Post.model_validate(dict(c)))
         return Posts(posts=[Post.model_validate(dict(c)) for c in cur])
 
 
-def get_post(connection: Connection, post_id: int) -> Post:
+def get_post(connection: Connection, post_id: int, user_id: int) -> Post:
     with connection as c:
         cur = c.cursor()
         q = '''
@@ -45,13 +80,22 @@ def get_post(connection: Connection, post_id: int) -> Post:
                     SELECT post_id, count(*) num_likes
                     FROM likes
                     WHERE post_id =:post_id
+                ),
+                user_liked AS
+                (SELECT post_id, user_id
+                FROM likes
+                WHERE user_id = :user_id AND post_id = :post_id
                 )
-                SELECT p.post_id post_id,post_title, post_text,user_id,num_likes
+                SELECT p.user_id AS user_id,p.post_id post_id,post_title, post_text,num_likes,
+                CASE WHEN u.user_id IS NOT NULL THEN TRUE ELSE FALSE END AS user_liked
                 FROM post_page p
                 LEFT JOIN like_count l
-                USING (post_id);
+                USING (post_id)
+                LEFT JOIN user_liked u
+                USING (post_id)
+                ;
             '''
-        cur = cur.execute(q, {"post_id": post_id})
+        cur = cur.execute(q, {"post_id": post_id, "user_id": user_id})
         return Post.model_validate(dict(cur.fetchone()))
 
 
