@@ -1,0 +1,12 @@
+<div class="card-content" id="add_post">
+    {% if post_added %}
+    <div class="has-text-success">Post Added !!</div>
+    {%endif %}
+    <form hx-post="/posts" hx-trigger="submit" hx-target="#add_post" hx-swap="innerHTML" hx-ext='json-enc'>
+        <label for="title" class="label">Title</label>
+        <input type="text" name="post_title" id="title" class="input">
+        <label for="text" class="label">Text</label>
+        <input type="text" name="post_text" id="text" class="input">
+        <input type="submit" class="button">
+    </form>
+</div>

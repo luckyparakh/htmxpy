@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<h1>Login</h1>
+{% if message %}
+<div>
+    <p> {{ message }}</p>
+</div>
+{% endif %}
+<form action="/login" method="post">
+    {% include "user_form.html" %}
+    <input type="submit" class="button">
+</form>
+{% endblock %}

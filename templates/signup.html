@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Signup{% endblock %}
+{% block content %}
+<h1>Sign Up</h1>
+{% if message %}
+<div>
+    <p> {{ message }}</p>
+</div>
+{% endif %}
+<form action="/signup" method="post">
+    {% include "user_form.html" %}
+    <label for="cpwd">Confirm Password</label>
+    <input type="password" name="confirm_password" id="cpwd" class="input">
+    <input type="submit" class="button">
+</form>
+{% endblock %}
