@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, HTTPException, status, Form, Depends, Cook
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.security import OAuth2, OAuth2PasswordBearer
 from sqlite3 import Connection, Row
-from htmxpy.db import get_posts, insert_post, create_user, get_user, add_like, get_post
+from htmxpy.db import get_posts, insert_post, create_user, get_user, add_like, get_post, delete_like, get_like
 from htmxpy.models import Post, UserPost, UserHashed, Like, PostID
 from fastapi.templating import Jinja2Templates
 from secrets import token_hex
@@ -141,7 +141,10 @@ async def login(username: Annotated[str, Form()], password: Annotated[str, Form(
 @ app.post("/like")
 async def create_like(post_id: PostID, request: Request, uid: int = Depends(oauth_cookie)) -> HTMLResponse:
     like = Like(user_id=uid, post_id=post_id.post_id)
-    err = add_like(connection, like)
+    if get_like(connection, like):
+        delete_like(connection, like)
+    else:
+        err = add_like(connection, like)
     post = get_post(connection, post_id.post_id, uid).model_dump()
     # print(post)
     context = {"post": post, "login": True}

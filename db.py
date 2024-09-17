@@ -157,6 +157,32 @@ def add_like(connection: Connection, like: Like):
         logger.error(e)
         return e
 
+
+def get_like(connection: Connection, like: Like):
+    with connection as c:
+        cur = c.cursor()
+        q = '''
+            SELECT * from likes
+            WHERE user_id=:user_id AND post_id=:post_id
+            '''
+        cur.execute(q, like.model_dump())
+        return True if cur.fetchone() is not None else False
+
+def delete_like(connection: Connection, like: Like):
+    try:
+        with connection as c:
+            cur = c.cursor()
+            q = '''
+                DELETE from likes
+                WHERE user_id=:user_id AND post_id=:post_id
+                '''
+            cur.execute(q, like.model_dump())
+            c.commit()
+            return None
+    except Exception as e:
+        logger.error(e)
+        return e
+
     # if __name__ == "__main__":
     #     test_post = Post(text="This is just for test", title="Test", user_id=3)
     #     insert_post(connection, test_post)
